@@ -5,50 +5,14 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"agent-orchestrator/agents" // Import the agents package
 )
-
-// Agent represents an AI agent that can execute a task and return a response.
-type Agent interface {
-	ID() string
-	Execute(prompt string, memory []string) (string, error)
-}
-
-// MockAgent is a simple agent that returns a predefined response based on its ID.
-type MockAgent struct {
-	agentID string
-	// For demonstration, we'll use a simple map for "responses"
-	// In a real system, this would involve LLM calls or complex logic.
-	responses map[string]string
-}
-
-// NewMockAgent creates a new MockAgent.
-func NewMockAgent(id string, responses map[string]string) *MockAgent {
-	return &MockAgent{
-		agentID:   id,
-		responses: responses,
-	}
-}
-
-func (ma *MockAgent) ID() string {
-	return ma.agentID
-}
-
-func (ma *MockAgent) Execute(prompt string, memory []string) (string, error) {
-	log.Printf("[%s] Executing with prompt: '%s', memory: %v", ma.agentID, prompt, memory)
-	// Simulate some work
-	time.Sleep(100 * time.Millisecond)
-
-	// Simple logic: if prompt matches a key, return its value. Otherwise, default.
-	if resp, ok := ma.responses[prompt]; ok {
-		return resp, nil
-	}
-	return fmt.Sprintf("MockAgent %s processed: '%s'", ma.agentID, prompt), nil
-}
 
 // Orchestrator manages the interaction and lifecycle of multiple agents.
 type Orchestrator struct {
-	agents map[string]Agent
-	memory map[string][]string // Agent-specific memory
+	agents map[string]agents.Agent // Use agents.Agent interface
+	memory map[string][]string     // Agent-specific memory
 	mu     sync.Mutex
 	eventBus chan AgentEvent
 }
@@ -63,14 +27,14 @@ type AgentEvent struct {
 // NewOrchestrator creates a new Orchestrator.
 func NewOrchestrator() *Orchestrator {
 	return &Orchestrator{
-		agents:   make(map[string]Agent),
+		agents:   make(map[string]agents.Agent), // Use agents.Agent interface
 		memory:   make(map[string][]string),
 		eventBus: make(chan AgentEvent, 100), // Buffered channel
 	}
 }
 
 // RegisterAgent adds an agent to the orchestrator.
-func (o *Orchestrator) RegisterAgent(agent Agent) {
+func (o *Orchestrator) RegisterAgent(agent agents.Agent) { // Use agents.Agent interface
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.agents[agent.ID()] = agent
@@ -168,9 +132,9 @@ func main() {
 		"Task completed successfully.": "User notified.",
 	}
 
-	orchestrator.RegisterAgent(NewMockAgent("task_manager", taskManagerResponses))
-	orchestrator.RegisterAgent(NewMockAgent("data_analyzer", dataAnalyzerResponses))
-	orchestrator.RegisterAgent(NewMockAgent("user_notifier", userNotifierResponses))
+	orchestrator.RegisterAgent(agents.NewMockAgent("task_manager", taskManagerResponses))
+	orchestrator.RegisterAgent(agents.NewMockAgent("data_analyzer", dataAnalyzerResponses))
+	orchestrator.RegisterAgent(agents.NewMockAgent("user_notifier", userNotifierResponses))
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -203,4 +167,3 @@ func main() {
 	orchestrator.mu.Unlock()
 
 	log.Println("Orchestration complete.")
-}
